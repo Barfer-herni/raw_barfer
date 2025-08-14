@@ -467,7 +467,7 @@ export default function ProductosAdminPage() {
                                         }
                                         
                                         // Si falló el retry, mostrar placeholder simple
-                                        console.error('❌ No se pudo cargar la imagen:', product.imagen);
+                                        console.error('❌ No se pudo cargar la imagen:', product.imagenes?.[0]);
                                         
                                         const placeholder = document.createElement('div');
                                         placeholder.className = 'w-full h-48 bg-gray-100 border-2 border-gray-200 rounded-xl mb-4 flex items-center justify-center';

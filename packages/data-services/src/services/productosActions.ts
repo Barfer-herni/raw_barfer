@@ -105,9 +105,10 @@ export async function getProductByIdAction(productId: string): Promise<{ success
             };
         }
 
+        // Serializar explícitamente para Next.js
         return {
             success: true,
-            product
+            product: JSON.parse(JSON.stringify(product))
         };
     } catch (error) {
         console.error('Error en getProductByIdAction:', error);
@@ -213,16 +214,21 @@ export async function getProductsForHomeAction(): Promise<{ success: boolean; pr
         const result = await getAllProductsService(false); // Solo productos activos
         
         // Transformar los datos al formato esperado por la página de inicio
-        const transformedProducts = result.map(product => ({
-            id: product._id,
-            name: product.titulo,
-            description: product.descripcion,
-            priceRange: product.precioMinorista && product.precioMayorista 
-                ? `${product.precioMinorista} - ${product.precioMayorista}`
-                : product.precioMinorista?.toString() || 'Consultar precio',
-            category: product.categoria,
-            image: product.imagen || 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=300&h=300&fit=crop'
-        }));
+        const transformedProducts = result.map(product => {
+            console.log('Transforming product:', { _id: product._id, titulo: product.titulo });
+            return {
+                id: product._id,
+                name: product.titulo,
+                description: product.descripcion,
+                priceRange: product.precioMinorista && product.precioMayorista 
+                    ? `${product.precioMinorista} - ${product.precioMayorista}`
+                    : product.precioMinorista?.toString() || 'Consultar precio',
+                category: product.categoria,
+                image: (product.imagenes && product.imagenes.length > 0) 
+                    ? product.imagenes[0] 
+                    : 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=300&h=300&fit=crop'
+            };
+        });
 
         return {
             success: true,

@@ -25,7 +25,7 @@ export default function ProductosAdminPage() {
     const [showCategoryForm, setShowCategoryForm] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
-    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+    const [selectedImageFiles, setSelectedImageFiles] = useState<File[]>([]);
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
@@ -38,7 +38,7 @@ export default function ProductosAdminPage() {
         precioMinorista: 0,
         precioMayorista: 0,
         stock: 0,
-        imagen: '',
+        imagenes: [],
         categoria: '',
         dimensiones: {
             alto: undefined,
@@ -92,22 +92,54 @@ export default function ProductosAdminPage() {
     };
 
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
 
-        // Validar archivo
-        const validation = validateImageFile(file);
-        if (!validation.isValid) {
-            alert(validation.message);
-            return;
+        const newFiles: File[] = [];
+        const newPreviews: string[] = [];
+
+        // Procesar cada archivo
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            
+            // Validar archivo
+            const validation = validateImageFile(file);
+            if (!validation.isValid) {
+                alert(`Error en ${file.name}: ${validation.message}`);
+                continue;
+            }
+
+            newFiles.push(file);
+            // Crear preview local usando URL.createObjectURL
+            const previewUrl = URL.createObjectURL(file);
+            newPreviews.push(previewUrl);
         }
 
-        // Almacenar el archivo localmente para subirlo después
-        setSelectedImageFile(file);
+        if (newFiles.length > 0) {
+            // Agregar archivos a los existentes
+            setSelectedImageFiles(prev => [...prev, ...newFiles]);
+            setProductForm(prev => ({ 
+                ...prev, 
+                imagenes: [...(prev.imagenes || []), ...newPreviews] 
+            }));
+        }
+    };
+
+    const removeImage = (index: number) => {
+        // Limpiar URL de preview si es una URL blob
+        const imageToRemove = productForm.imagenes?.[index];
+        if (imageToRemove && imageToRemove.startsWith('blob:')) {
+            URL.revokeObjectURL(imageToRemove);
+        }
+
+        // Remover de los archivos seleccionados
+        setSelectedImageFiles(prev => prev.filter((_, i) => i !== index));
         
-        // Crear preview local usando URL.createObjectURL
-        const previewUrl = URL.createObjectURL(file);
-        setProductForm(prev => ({ ...prev, imagen: previewUrl }));
+        // Remover de las URLs de preview
+        setProductForm(prev => ({
+            ...prev,
+            imagenes: prev.imagenes?.filter((_, i) => i !== index) || []
+        }));
     };
 
     const handleProductSubmit = async (e: React.FormEvent) => {
@@ -121,28 +153,38 @@ export default function ProductosAdminPage() {
         try {
             let finalProductForm = { ...productForm };
 
-            // Si hay una imagen seleccionada, subirla a Cloudinary primero
-            if (selectedImageFile) {
+            // Si hay imágenes seleccionadas, subirlas a Cloudinary primero
+            if (selectedImageFiles.length > 0) {
                 setUploadingImage(true);
                 try {
-                    const formData = new FormData();
-                    formData.append('file', selectedImageFile);
-                    formData.append('folder', 'productos');
+                    const uploadedUrls: string[] = [];
                     
-                    const uploadResult = await uploadImageAction(formData);
-                    if (uploadResult.success && uploadResult.url) {
-                        finalProductForm.imagen = uploadResult.url;
-                        // Limpiar la URL del preview local
-                        if (productForm.imagen && productForm.imagen.startsWith('blob:')) {
-                            URL.revokeObjectURL(productForm.imagen);
+                    // Subir cada imagen
+                    for (const file of selectedImageFiles) {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('folder', 'productos');
+                        
+                        const uploadResult = await uploadImageAction(formData);
+                        if (uploadResult.success && uploadResult.url) {
+                            uploadedUrls.push(uploadResult.url);
+                        } else {
+                            alert(`Error al subir ${file.name}: ${uploadResult.message}`);
+                            return;
                         }
-                    } else {
-                        alert(uploadResult.message || 'Error al subir imagen');
-                        return;
                     }
+                    
+                    finalProductForm.imagenes = uploadedUrls;
+                    
+                    // Limpiar las URLs de preview locales
+                    productForm.imagenes?.forEach(imageUrl => {
+                        if (imageUrl.startsWith('blob:')) {
+                            URL.revokeObjectURL(imageUrl);
+                        }
+                    });
                 } catch (error) {
-                    console.error('Error subiendo imagen:', error);
-                    alert('Error al subir imagen');
+                    console.error('Error subiendo imágenes:', error);
+                    alert('Error al subir imágenes');
                     return;
                 } finally {
                     setUploadingImage(false);
@@ -193,10 +235,12 @@ export default function ProductosAdminPage() {
     };
 
     const resetProductForm = () => {
-        // Limpiar URL de preview si existe
-        if (productForm.imagen && productForm.imagen.startsWith('blob:')) {
-            URL.revokeObjectURL(productForm.imagen);
-        }
+        // Limpiar URLs de preview si existen
+        productForm.imagenes?.forEach(imageUrl => {
+            if (imageUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(imageUrl);
+            }
+        });
         
         setProductForm({
             titulo: '',
@@ -204,7 +248,7 @@ export default function ProductosAdminPage() {
             precioMinorista: 0,
             precioMayorista: 0,
             stock: 0,
-            imagen: '',
+            imagenes: [],
             categoria: '',
             dimensiones: {
                 alto: undefined,
@@ -214,12 +258,12 @@ export default function ProductosAdminPage() {
             }
         });
         setEditingProduct(null);
-        setSelectedImageFile(null);
+        setSelectedImageFiles([]);
     };
 
     const handleEditProduct = (product: AdminProduct) => {
         // Limpiar cualquier archivo seleccionado previamente
-        setSelectedImageFile(null);
+        setSelectedImageFiles([]);
         
         setEditingProduct(product);
         setProductForm({
@@ -228,7 +272,7 @@ export default function ProductosAdminPage() {
             precioMinorista: product.precioMinorista,
             precioMayorista: product.precioMayorista,
             stock: product.stock,
-            imagen: product.imagen || '',
+            imagenes: product.imagenes || [],
             categoria: product.categoria,
             dimensiones: product.dimensiones || {
                 alto: undefined,
@@ -251,28 +295,40 @@ export default function ProductosAdminPage() {
         try {
             let finalProductForm = { ...productForm };
 
-            // Si hay una nueva imagen seleccionada, subirla a Cloudinary primero
-            if (selectedImageFile) {
+            // Si hay nuevas imágenes seleccionadas, subirlas a Cloudinary
+            if (selectedImageFiles.length > 0) {
                 setUploadingImage(true);
                 try {
-                    const formData = new FormData();
-                    formData.append('file', selectedImageFile);
-                    formData.append('folder', 'productos');
+                    const uploadedUrls: string[] = [];
                     
-                    const uploadResult = await uploadImageAction(formData);
-                    if (uploadResult.success && uploadResult.url) {
-                        finalProductForm.imagen = uploadResult.url;
-                        // Limpiar la URL del preview local
-                        if (productForm.imagen && productForm.imagen.startsWith('blob:')) {
-                            URL.revokeObjectURL(productForm.imagen);
+                    // Subir cada nueva imagen
+                    for (const file of selectedImageFiles) {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('folder', 'productos');
+                        
+                        const uploadResult = await uploadImageAction(formData);
+                        if (uploadResult.success && uploadResult.url) {
+                            uploadedUrls.push(uploadResult.url);
+                        } else {
+                            alert(`Error al subir ${file.name}: ${uploadResult.message}`);
+                            return;
                         }
-                    } else {
-                        alert(uploadResult.message || 'Error al subir imagen');
-                        return;
                     }
+                    
+                    // Combinar imágenes existentes con las nuevas
+                    const existingImages = productForm.imagenes?.filter(url => !url.startsWith('blob:')) || [];
+                    finalProductForm.imagenes = [...existingImages, ...uploadedUrls];
+                    
+                    // Limpiar las URLs de preview locales
+                    productForm.imagenes?.forEach(imageUrl => {
+                        if (imageUrl.startsWith('blob:')) {
+                            URL.revokeObjectURL(imageUrl);
+                        }
+                    });
                 } catch (error) {
-                    console.error('Error subiendo imagen:', error);
-                    alert('Error al subir imagen');
+                    console.error('Error subiendo imágenes:', error);
+                    alert('Error al subir imágenes');
                     return;
                 } finally {
                     setUploadingImage(false);
@@ -387,15 +443,15 @@ export default function ProductosAdminPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {products.map((product) => (
                         <div key={product._id} className="bg-barfer-white rounded-2xl shadow-lg border-2 border-barfer-green p-4 hover:shadow-xl transition-all transform hover:scale-105">
-                            {product.imagen ? (
+                            {product.imagenes && product.imagenes.length > 0 ? (
                                 <img
-                                    src={product.imagen}
+                                    src={product.imagenes[0]}
                                     alt={product.titulo}
                                     className="w-full h-48 object-cover rounded-xl mb-4"
                                     loading="lazy"
                                     crossOrigin="anonymous"
                                     onError={(e) => {
-                                        console.warn('⚠️ Error cargando imagen:', product.imagen);
+                                        console.warn('⚠️ Error cargando imagen:', product.imagenes?.[0]);
                                         
                                         // Intentar una sola recarga con cache-busting
                                         if (!e.currentTarget.dataset.retried) {
@@ -404,7 +460,7 @@ export default function ProductosAdminPage() {
                                             const imgElement = e.currentTarget as HTMLImageElement;
                                             setTimeout(() => {
                                                 if (imgElement && imgElement.parentNode) {
-                                                    imgElement.src = product.imagen + '?t=' + Date.now();
+                                                    imgElement.src = (product.imagenes?.[0] || '') + '?t=' + Date.now();
                                                 }
                                             }, 500);
                                             return;
@@ -599,36 +655,55 @@ export default function ProductosAdminPage() {
                                         </div>
                                     </div>
 
-                                    {/* Imagen */}
+                                    {/* Imágenes */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Imagen
+                                            Imágenes (puedes seleccionar múltiples)
                                         </label>
                                         <input
                                             type="file"
                                             accept="image/*"
+                                            multiple
                                             onChange={handleImageUpload}
                                             disabled={uploadingImage}
                                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-barfer-green focus:border-barfer-green"
                                         />
                                         {uploadingImage && (
-                                            <p className="text-sm text-blue-600 mt-2">Subiendo imagen...</p>
+                                            <p className="text-sm text-blue-600 mt-2">Subiendo imágenes...</p>
                                         )}
-                                        {selectedImageFile && (
+                                        {selectedImageFiles.length > 0 && (
                                             <p className="text-sm text-gray-600 mt-2">
-                                                📁 Imagen seleccionada: {selectedImageFile.name}
+                                                📁 {selectedImageFiles.length} imagen{selectedImageFiles.length !== 1 ? 'es' : ''} seleccionada{selectedImageFiles.length !== 1 ? 's' : ''}
                                                 <br />
                                                 <span className="text-xs text-gray-500">
-                                                    Se subirá cuando {editingProduct ? 'actualices' : 'crees'} el producto
+                                                    Se subirán cuando {editingProduct ? 'actualices' : 'crees'} el producto
                                                 </span>
                                             </p>
                                         )}
-                                        {productForm.imagen && (
-                                            <img
-                                                src={productForm.imagen}
-                                                alt="Preview"
-                                                className="mt-2 w-32 h-32 object-cover rounded-xl"
-                                            />
+                                        
+                                        {/* Preview de imágenes */}
+                                        {productForm.imagenes && productForm.imagenes.length > 0 && (
+                                            <div className="mt-4">
+                                                <p className="text-sm font-medium text-gray-700 mb-2">Imágenes:</p>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                    {productForm.imagenes.map((imageUrl, index) => (
+                                                        <div key={index} className="relative group">
+                                                            <img
+                                                                src={imageUrl}
+                                                                alt={`Preview ${index + 1}`}
+                                                                className="w-full h-24 object-cover rounded-lg border"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeImage(index)}
+                                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
 

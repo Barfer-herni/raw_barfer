@@ -42,7 +42,7 @@ export interface AdminProduct {
     precioMinorista: number;  // Primer tipo de precio
     precioMayorista: number;  // Segundo tipo de precio
     stock: number;
-    imagen?: string;          // URL de Cloudinary
+    imagenes?: string[];      // Array de URLs de Cloudinary
     categoria: string;        // ID de la categoría
     
     // Medidas del paquete
@@ -67,7 +67,7 @@ export interface CreateAdminProduct {
     precioMinorista: number;
     precioMayorista: number;
     stock: number;
-    imagen?: string;
+    imagenes?: string[];
     categoria: string;
     dimensiones?: {
         alto?: number;

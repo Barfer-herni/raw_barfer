@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, Minus } from 'lucide-react';
 import { useCart } from '../../components/cart-context';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 
 interface Product {
     id: string;
@@ -20,7 +22,18 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onAddToCart }: ProductCardProps) {
     const { cart } = useCart();
+    const pathname = usePathname();
     const [localQuantity, setLocalQuantity] = useState(1);
+    
+    // Extraer locale del pathname
+    const locale = pathname.split('/')[1] || 'es';
+    
+    // Debug: verificar que los valores estén correctos
+    console.log('ProductCard Debug:', {
+        productId: product.id,
+        locale,
+        targetUrl: `/${locale}/admin/producto/${product.id}`
+    });
     
     // Obtener la cantidad actual de este producto en el carrito
     const cartItem = cart.find(item => item.id === product.id);
@@ -57,21 +70,25 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
 
     return (
         <div className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-white rounded-xl overflow-hidden">
-            {/* Product Image */}
-            <div className="relative overflow-hidden bg-gray-50">
-                <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-64 lg:h-80 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-            </div>
+            {/* Product Image - Clickeable */}
+            <Link href={`/${locale}/admin/producto/${product.id}`} className="block">
+                <div className="relative overflow-hidden bg-gray-50">
+                    <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-full h-64 lg:h-80 object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                </div>
+            </Link>
 
             {/* Product Info */}
             <div className="p-4 space-y-4">
-                {/* Product Name */}
-                <h3 className="text-base lg:text-lg font-bold text-gray-900 line-clamp-2 min-h-[3rem] flex items-center">
-                    {product.name}
-                </h3>
+                {/* Product Name - Clickeable */}
+                <Link href={`/${locale}/admin/producto/${product.id}`}>
+                    <h3 className="text-base lg:text-lg font-bold text-gray-900 line-clamp-2 min-h-[3rem] flex items-center hover:text-barfer-green transition-colors cursor-pointer">
+                        {product.name}
+                    </h3>
+                </Link>
 
                 {/* Price */}
                 <div className="flex items-center">

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { getDictionary } from '@repo/internationalization';
-import { AdminLayoutClient } from './components/admin-layout-client';
+import { AdminPageWrapper } from './components/admin-page-wrapper';
 import Image from 'next/image';
 import Link from 'next/link';
 import logo from '@/app/public/barfer.png';
@@ -17,17 +17,17 @@ export default async function AdminLayout({ children, params }: AdminLayoutProps
     const dictionary = await getDictionary(locale);
 
     return (
-        <AdminLayoutClient
+        <AdminPageWrapper
             logo={
                 <Link href={`/${locale}`}>
                     <Image src={logo} alt="RAW" width={32} height={32} className="cursor-pointer hover:opacity-80 transition-opacity" />
                 </Link>
             }
-            title="RAW - Tienda"
+            title=""
             dictionary={dictionary}
             locale={locale}
         >
             {children}
-        </AdminLayoutClient>
+        </AdminPageWrapper>
     );
 } 

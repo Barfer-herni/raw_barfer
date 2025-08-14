@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { checkAdminRoleAction, getProductsForHomeAction } from '@repo/data-services/src/actions';
+import { getProductsForHomeAction } from '@repo/data-services/src/actions';
 import { useCart } from '../components/cart-context';
 import { ProductCard } from './components/product-card';
 import { CartNotification } from '../components/cart-notification';
 import { ScrollReveal } from '../components/scroll-reveal';
+
 
 interface Product {
     id: string;
@@ -315,8 +316,7 @@ export default function AdminPage() {
     const [expandedBenefit, setExpandedBenefit] = useState<number | null>(null);
     const [currentClientPhotoIndex, setCurrentClientPhotoIndex] = useState(0);
     const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [isLoadingAdmin, setIsLoadingAdmin] = useState(true);
+
     
     // Notification state
     const [notification, setNotification] = useState<{
@@ -344,22 +344,7 @@ export default function AdminPage() {
         setNotification(prev => ({ ...prev, isVisible: false }));
     };
 
-    // Verificar permisos de administrador
-    useEffect(() => {
-        const checkAdminRole = async () => {
-            try {
-                const result = await checkAdminRoleAction();
-                setIsAdmin(result.isAdmin);
-            } catch (error) {
-                console.error('Error verificando rol de admin:', error);
-                setIsAdmin(false);
-            } finally {
-                setIsLoadingAdmin(false);
-            }
-        };
 
-        checkAdminRole();
-    }, []);
 
     // Cargar productos reales desde la base de datos
     useEffect(() => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { env } from '@/env';
-import { ModeToggle } from '@repo/design-system/components/mode-toggle';
+
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   NavigationMenu,
@@ -89,7 +89,6 @@ export const Header = ({ dictionary, locale }: HeaderProps) => {
 
         {/* Right side buttons */}
         <div className="flex items-center gap-2">
-          <ModeToggle />
           <Button className="bg-[#0d4b3d] hover:bg-[#0d4b3d]/90 text-white font-nunito font-bold px-3 py-1 h-9" asChild>
             <Link href={`${env.NEXT_PUBLIC_APP_URL}/${locale}/sign-in`}>
               {dictionary.web.header.getStarted || 'Get Started'}
@@ -121,7 +120,6 @@ export const Header = ({ dictionary, locale }: HeaderProps) => {
               </div>
             ))}
             <div className="px-4">
-              <ModeToggle />
               {env.NEXT_PUBLIC_APP_URL && (
                 <Link
                   href={`${env.NEXT_PUBLIC_APP_URL}/${locale}/sign-in`}

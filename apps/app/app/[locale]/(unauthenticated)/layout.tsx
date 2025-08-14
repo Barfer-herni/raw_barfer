@@ -35,7 +35,6 @@ const AuthLayout = async ({ children, params }: AuthLayoutProps) => {
               <span className="font-bold text-2xl text-gray-900 dark:text-white">Barfer</span>
             </Link>
             <div className="flex items-center gap-2">
-              <ModeToggle />
               {/* <LanguageSwitcher /> */}
             </div>
           </div>
@@ -59,7 +58,6 @@ const AuthLayout = async ({ children, params }: AuthLayoutProps) => {
             <span className="font-bold text-xl text-gray-900 dark:text-white">Barfer</span>
           </Link>
           <div className="flex items-center gap-2">
-            <ModeToggle />
           </div>
         </div>
 

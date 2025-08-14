@@ -2,11 +2,10 @@
 
 import { getCurrentUser } from '@repo/auth/server';
 import { ReactNode, useEffect, useState } from 'react';
-import { LogoutButton } from '../logout-button';
+import { UserMenu } from '../user-menu';
 import { LanguageSwitcher } from '../language-switcher';
-import { ProfileButton } from '../profile-button';
 import { Dictionary } from '@repo/internationalization';
-import { ModeToggle } from '@repo/design-system/components/mode-toggle';
+
 import { useSidebar } from '@/store/sidebarStore';
 import { Button } from '@repo/design-system/components/ui/button';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
@@ -67,11 +66,9 @@ export function UserHeaderClient({ logo, title = 'Barfer', extraItems, dictionar
                     </Button>
                 </div>
                 <div className="flex items-center gap-3">
-                    <ModeToggle />
                     {/* <LanguageSwitcher /> */}
+                    <UserMenu userName={user?.name} dictionary={dictionary} locale={locale} />
                     {extraItems}
-                    <ProfileButton locale={locale} />
-                    <LogoutButton userName={user?.name} dictionary={dictionary} locale={locale} />
                 </div>
             </div>
         </header>

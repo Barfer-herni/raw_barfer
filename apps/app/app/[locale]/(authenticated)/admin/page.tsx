@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { checkAdminRoleAction, getProductsForHomeAction } from '@repo/data-services/src/actions';
+import { useCart } from '../components/cart-context';
+import { ProductCard } from './components/product-card';
+import { CartNotification } from '../components/cart-notification';
+import { ScrollReveal } from '../components/scroll-reveal';
 
 interface Product {
     id: string;
@@ -44,63 +48,49 @@ const CAROUSEL_IMAGES = [
     }
 ];
 
-// Fotos de perros de clientes para la sección USTEDES
-const CLIENT_PHOTOS = [
+// Fotos de animales con productos de RAW
+const ANIMAL_PRODUCT_PHOTOS = [
     {
         id: 1,
-        src: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=300&h=300&fit=crop',
-        alt: 'Luna - Golden Retriever',
-        owner: 'María G.',
-        comment: '¡Luna ama su nueva cama!'
+        src: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=400&fit=crop',
+        alt: 'Golden Retriever con cama ortopédica',
+        animal: 'Luna',
+        product: 'Cama Ortopédica Premium'
     },
     {
         id: 2,
-        src: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300&h=300&fit=crop',
-        alt: 'Milo - Gato Persa',
-        owner: 'Carlos R.',
-        comment: 'Milo está más feliz que nunca'
+        src: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=400&fit=crop',
+        alt: 'Gato Persa con juguete interactivo',
+        animal: 'Milo',
+        product: 'Juguete Interactivo'
     },
     {
         id: 3,
-        src: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=300&h=300&fit=crop',
-        alt: 'Rocky - Pastor Alemán',
-        owner: 'Ana L.',
-        comment: 'Los juguetes son geniales'
+        src: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=400&fit=crop',
+        alt: 'Pastor Alemán con comida premium',
+        animal: 'Rocky',
+        product: 'Comida Premium Natural'
     },
     {
         id: 4,
-        src: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=300&h=300&fit=crop',
-        alt: 'Bella - Husky Siberiano',
-        owner: 'Roberto M.',
-        comment: 'Bella adora sus nuevos accesorios'
+        src: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&h=400&fit=crop',
+        alt: 'Husky con collar y correa',
+        animal: 'Bella',
+        product: 'Set Collar y Correa'
     },
     {
         id: 5,
-        src: 'https://images.unsplash.com/photo-1546527868-ccb7ee7dfa6a?w=300&h=300&fit=crop',
-        alt: 'Max - Labrador',
-        owner: 'Sofia P.',
-        comment: 'Max está más saludable que nunca'
+        src: 'https://images.unsplash.com/photo-1546527868-ccb7ee7dfa6a?w=400&h=400&fit=crop',
+        alt: 'Labrador con suplementos vitamínicos',
+        animal: 'Max',
+        product: 'Suplementos Vitamínicos'
     },
     {
         id: 6,
-        src: 'https://images.unsplash.com/photo-1601758228041-3b9a0a2b0b0b?w=300&h=300&fit=crop',
-        alt: 'Nina - Bulldog Francés',
-        owner: 'Diego S.',
-        comment: 'Nina ama su shampoo natural'
-    },
-    {
-        id: 7,
-        src: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=300&h=300&fit=crop',
-        alt: 'Thor - Rottweiler',
-        owner: 'Valentina C.',
-        comment: 'Thor está más tranquilo'
-    },
-    {
-        id: 8,
-        src: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300&h=300&fit=crop',
-        alt: 'Lola - Maine Coon',
-        owner: 'Miguel A.',
-        comment: 'Lola está más activa'
+        src: 'https://images.unsplash.com/photo-1601758228041-3b9a0a2b0b0b?w=400&h=400&fit=crop',
+        alt: 'Bulldog con shampoo natural',
+        animal: 'Nina',
+        product: 'Shampoo Hipoalergénico'
     }
 ];
 
@@ -321,14 +311,38 @@ const FAQ_DATA = [
 export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-    const [cart, setCart] = useState<CartItem[]>([]);
-    const [isCartOpen, setIsCartOpen] = useState(false);
     const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
     const [expandedBenefit, setExpandedBenefit] = useState<number | null>(null);
     const [currentClientPhotoIndex, setCurrentClientPhotoIndex] = useState(0);
     const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isLoadingAdmin, setIsLoadingAdmin] = useState(true);
+    
+    // Notification state
+    const [notification, setNotification] = useState<{
+        isVisible: boolean;
+        productName: string;
+        quantity: number;
+    }>({
+        isVisible: false,
+        productName: '',
+        quantity: 0
+    });
+    
+    const { addToCart } = useCart();
+
+    const handleAddToCart = (product: Product, quantity: number) => {
+        addToCart(product, quantity);
+        setNotification({
+            isVisible: true,
+            productName: product.name,
+            quantity
+        });
+    };
+
+    const closeNotification = () => {
+        setNotification(prev => ({ ...prev, isVisible: false }));
+    };
 
     // Verificar permisos de administrador
     useEffect(() => {
@@ -382,11 +396,11 @@ export default function AdminPage() {
         return () => clearInterval(interval);
     }, []);
 
-    // Auto-play del carrusel de clientes
+    // Auto-play del carrusel de animales con productos
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentClientPhotoIndex((prevIndex) =>
-                (prevIndex + 1) % CLIENT_PHOTOS.length
+                (prevIndex + 1) % ANIMAL_PRODUCT_PHOTOS.length
             );
         }, 3000); // Cambia cada 3 segundos
 
@@ -415,13 +429,13 @@ export default function AdminPage() {
 
     const nextClientPhoto = () => {
         setCurrentClientPhotoIndex((prevIndex) =>
-            (prevIndex + 1) % CLIENT_PHOTOS.length
+            (prevIndex + 1) % ANIMAL_PRODUCT_PHOTOS.length
         );
     };
 
     const prevClientPhoto = () => {
         setCurrentClientPhotoIndex((prevIndex) =>
-            prevIndex === 0 ? CLIENT_PHOTOS.length - 1 : prevIndex - 1
+            prevIndex === 0 ? ANIMAL_PRODUCT_PHOTOS.length - 1 : prevIndex - 1
         );
     };
 
@@ -433,213 +447,10 @@ export default function AdminPage() {
         setExpandedFAQ(expandedFAQ === faqId ? null : faqId);
     };
 
-    const addToCart = (product: Product) => {
-        const existingItem = cart.find(item => item.id === product.id);
 
-        if (existingItem) {
-            setCart(prevCart =>
-                prevCart.map(item =>
-                    item.id === product.id
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                )
-            );
-        } else {
-            setCart(prevCart => [...prevCart, {
-                ...product,
-                quantity: 1
-            }]);
-        }
-    };
-
-    const removeFromCart = (productId: string) => {
-        setCart(prevCart => prevCart.filter(item => item.id !== productId));
-    };
-
-    const updateQuantity = (productId: string, newQuantity: number) => {
-        if (newQuantity <= 0) {
-            removeFromCart(productId);
-            return;
-        }
-
-        setCart(prevCart =>
-            prevCart.map(item =>
-                item.id === productId
-                    ? { ...item, quantity: newQuantity }
-                    : item
-            )
-        );
-    };
-
-    const getTotalPrice = () => {
-        // Como ahora tenemos rangos de precio, usamos el precio medio para el cálculo
-        return cart.reduce((total, item) => {
-            const [min, max] = item.priceRange.split(' - ').map(p => parseInt(p));
-            const avgPrice = (min + max) / 2;
-            return total + (avgPrice * item.quantity);
-        }, 0);
-    };
-
-    const getTotalItems = () => {
-        return cart.reduce((total, item) => total + item.quantity, 0);
-    };
-
-    const checkout = () => {
-        if (cart.length === 0) {
-            alert('Tu carrito está vacío');
-            return;
-        }
-
-        // Guardar carrito en localStorage para la página de checkout
-        localStorage.setItem('barfer-cart', JSON.stringify(cart));
-
-        // Redirigir a la página de checkout
-        window.location.href = '/admin/checkout';
-    };
-
-    const toggleCart = () => {
-        setIsCartOpen(!isCartOpen);
-    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-barfer-white to-orange-50 w-full">
-            {/* Navbar fijo con carrito y admin */}
-            <nav className="fixed top-20 right-4 z-40 flex flex-col gap-3">
-                <div className="relative">
-                    <button
-                        onClick={toggleCart}
-                        className="relative p-4 bg-barfer-orange hover:bg-orange-600 text-barfer-white rounded-2xl transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
-                    >
-                            <svg
-                                className="w-6 h-6"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m6 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"
-                                />
-                            </svg>
-
-                            {/* Badge con cantidad de items */}
-                            {getTotalItems() > 0 && (
-                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
-                                    {getTotalItems()}
-                                </span>
-                            )}
-                        </button>
-
-                        {/* Carrito desplegable */}
-                        {isCartOpen && (
-                            <div className="fixed left-0 top-0 w-full h-full bg-black bg-opacity-50 z-50" onClick={toggleCart}>
-                                <div className="absolute top-4 bottom-4 right-4 w-96 bg-barfer-white border-2 border-barfer-green rounded-2xl shadow-xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                                    <div className="p-4 border-b">
-                                        <div className="flex items-center justify-between">
-                                            <h2 className="text-xl font-bold font-poppins">Carrito de Compras</h2>
-                                            <button
-                                                onClick={toggleCart}
-                                                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <p className="text-gray-600 dark:text-gray-400 text-sm">
-                                            {cart.length} producto{cart.length !== 1 ? 's' : ''} en el carrito
-                                        </p>
-                                    </div>
-
-                                    <div className="p-4">
-                                        {cart.length === 0 ? (
-                                            <p className="text-center text-gray-500 py-8">
-                                                Tu carrito está vacío
-                                            </p>
-                                        ) : (
-                                            <>
-                                                <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
-                                                    {cart.map((item) => (
-                                                        <div key={item.id} className="flex items-center gap-3 p-3 bg-green-50 border border-barfer-green rounded-2xl">
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="font-medium text-sm font-nunito">{item.name}</p>
-                                                                <p className="text-sm text-barfer-green font-semibold">
-                                                                    ${item.priceRange}
-                                                                </p>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <button
-                                                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                                                    className="w-8 h-8 border border-barfer-green rounded-xl flex items-center justify-center hover:bg-barfer-green hover:text-barfer-white text-barfer-green transition-colors"
-                                                                >
-                                                                    -
-                                                                </button>
-                                                                <span className="w-8 text-center text-sm">{item.quantity}</span>
-                                                                <button
-                                                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                                                    className="w-8 h-8 border border-barfer-green rounded-xl flex items-center justify-center hover:bg-barfer-green hover:text-barfer-white text-barfer-green transition-colors"
-                                                                >
-                                                                    +
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => removeFromCart(item.id)}
-                                                                    className="w-8 h-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 rounded transition-colors"
-                                                                >
-                                                                    ×
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-
-                                                <div className="border-t pt-4">
-                                                    <div className="flex justify-between items-center mb-4">
-                                                        <span className="text-lg font-semibold">Total:</span>
-                                                        <span className="text-xl font-bold text-sky-600 dark:text-sky-400">
-                                                            ${getTotalPrice().toFixed(0)}
-                                                        </span>
-                                                    </div>
-                                                    <button
-                                                        onClick={checkout}
-                                                        className="w-full bg-barfer-orange hover:bg-orange-600 text-barfer-white py-3 rounded-2xl font-semibold transition-colors shadow-md hover:shadow-lg transform hover:scale-105"
-                                                    >
-                                                        Proceder al Checkout
-                                                    </button>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                </div>
-
-                {/* Botón de administración de productos - Solo para administradores */}
-                {!isLoadingAdmin && isAdmin && (
-                    <a
-                        href="/admin/productos"
-                        className="p-4 bg-barfer-green hover:bg-green-600 text-barfer-white rounded-2xl transition-colors shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center"
-                        title="Gestión de Productos"
-                    >
-                        <svg
-                            className="w-6 h-6"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                            />
-                        </svg>
-                    </a>
-                )}
-            </nav>
-
             {/* Contenido principal */}
             <div className="w-full">
                 {/* Carrusel de Fotos de Perros */}
@@ -669,24 +480,7 @@ export default function AdminPage() {
                         ))}
                     </div>
 
-                    {/* Botones de navegación */}
-                    <button
-                        onClick={prevSlide}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 bg-barfer-green bg-opacity-90 hover:bg-opacity-100 text-barfer-white p-2 rounded-full shadow-lg transition-all hover:scale-110"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
 
-                    <button
-                        onClick={nextSlide}
-                        className="absolute right-32 top-1/2 -translate-y-1/2 bg-barfer-green bg-opacity-90 hover:bg-opacity-100 text-barfer-white p-2 rounded-full shadow-lg transition-all hover:scale-110"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
 
                     {/* Indicadores de puntos */}
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
@@ -702,58 +496,51 @@ export default function AdminPage() {
                         ))}
                     </div>
                 </div>
+                
+                {/* Info boxes below carousel */}
+                <div className="flex flex-col sm:flex-row gap-4 mt-6">
+                    <div className="flex-1 bg-gradient-to-r from-barfer-green to-green-600 text-white p-4 rounded-xl shadow-lg">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                            </svg>
+                            <span className="font-semibold font-poppins">Envíos a todo el país</span>
+                        </div>
+                    </div>
+                    <div className="flex-1 bg-gradient-to-r from-barfer-orange to-orange-600 text-white p-4 rounded-xl shadow-lg">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-semibold font-poppins">Mínimo de compra: $15.000</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Lista de Productos */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 mb-12">
+            <ScrollReveal>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-6 mb-12">
                 {isLoadingProducts ? (
                     // Skeleton loading para productos
                     Array.from({ length: 8 }).map((_, index) => (
-                        <div key={index} className="border rounded-lg p-3 animate-pulse">
-                            <div className="mb-3">
-                                <div className="bg-gray-300 w-full h-48 rounded-lg"></div>
+                        <div key={index} className="p-4 animate-pulse">
+                            <div className="mb-4">
+                                <div className="bg-gray-300 w-full h-64 lg:h-80 rounded-lg"></div>
                             </div>
                             <div className="bg-gray-300 h-6 rounded mb-2"></div>
                             <div className="bg-gray-300 h-4 rounded mb-2"></div>
-                            <div className="bg-gray-300 h-5 rounded w-20 mb-3"></div>
+                            <div className="bg-gray-300 h-5 rounded w-20 mb-4"></div>
                             <div className="bg-gray-300 h-10 rounded"></div>
                         </div>
                     ))
                 ) : products.length > 0 ? (
                     products.map((product) => (
-                    <div
+                    <ProductCard
                         key={product.id}
-                        className="border rounded-lg p-3 hover:shadow-lg transition-all"
-                    >
-                        <div className="mb-3">
-                            <img
-                                src={product.image}
-                                alt={product.name}
-                                className="w-full h-48 object-contain rounded-lg bg-gray-50"
-                            />
-                        </div>
-
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
-                            {product.name}
-                        </h3>
-
-                        <p className="text-gray-600 dark:text-gray-400 mb-3 text-xs line-clamp-2">
-                            {product.description}
-                        </p>
-
-                        <div className="text-center mb-2">
-                            <span className="text-sm font-bold text-barfer-orange">
-                                ${product.priceRange}
-                            </span>
-                        </div>
-
-                        <button
-                            onClick={() => addToCart(product)}
-                            className="w-full bg-barfer-green hover:bg-green-600 text-barfer-white px-2 py-2 rounded-xl text-xs font-medium transition-colors shadow-md hover:shadow-lg transform hover:scale-105 font-nunito"
-                        >
-                            Agregar
-                        </button>
-                    </div>
+                        product={product}
+                        onAddToCart={handleAddToCart}
+                    />
                     ))
                 ) : (
                     // Mensaje cuando no hay productos
@@ -767,13 +554,18 @@ export default function AdminPage() {
                         </div>
                     </div>
                 )}
-            </div>
+                </div>
+            </ScrollReveal>
 
             {/* Sección de BENEFICIOS */}
-            <div className="mb-12">
-                <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8 font-poppins">
-                    BENEFICIOS
-                </h2>
+            <ScrollReveal delay={200}>
+                <div className="mb-12">
+                <div className="text-center mb-8">
+                    <h2 className="text-4xl lg:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-barfer-green to-barfer-orange font-poppins mb-2">
+                        ✨ BENEFICIOS ✨
+                    </h2>
+                    <p className="text-gray-600 text-lg">Todo lo que tu mascota necesita para ser feliz</p>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {BENEFITS_DATA.map((benefit) => (
@@ -831,85 +623,76 @@ export default function AdminPage() {
                         </div>
                     ))}
                 </div>
-            </div>
+                </div>
+            </ScrollReveal>
 
-            {/* Sección USTEDES - Carrusel de Fotos de Clientes */}
-            <div className="mb-12">
-                <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8 font-poppins">
-                    USTEDES
-                </h2>
+            {/* Sección USTEDES - Animales con Productos */}
+            <ScrollReveal delay={400}>
+                <div className="mb-12">
+                <div className="text-center mb-8">
+                    <h2 className="text-4xl lg:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-barfer-orange to-barfer-green font-poppins mb-2">
+                        🐾 NUESTROS AMIGOS 🐾
+                    </h2>
+                    <p className="text-gray-600 text-lg">Conoce a las mascotas que ya disfrutan RAW</p>
+                </div>
 
                 <div className="relative overflow-hidden rounded-xl shadow-lg bg-gradient-to-r from-green-50 to-orange-50 border-2 border-barfer-green p-8">
-                    {/* Imágenes del carrusel de clientes */}
-                    <div className="relative h-64">
-                        {CLIENT_PHOTOS.map((photo, index) => (
+                    {/* Carrusel de animales con productos */}
+                    <div className="relative h-80">
+                        {ANIMAL_PRODUCT_PHOTOS.map((photo, index) => (
                             <div
                                 key={photo.id}
                                 className={`absolute inset-0 transition-opacity duration-1000 ${index === currentClientPhotoIndex ? 'opacity-100' : 'opacity-0'
                                     }`}
                             >
                                 <div className="flex flex-col items-center text-center">
-                                    <div className="mb-4">
+                                    <div className="mb-6">
                                         <img
                                             src={photo.src}
                                             alt={photo.alt}
-                                            className="w-32 h-32 object-cover rounded-full border-4 border-barfer-green shadow-lg"
+                                            className="w-48 h-48 object-cover rounded-2xl border-4 border-barfer-green shadow-xl"
                                         />
                                     </div>
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                                        {photo.alt}
+                                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                                        {photo.animal}
                                     </h3>
-                                    <p className="text-barfer-orange font-bold mb-2">
-                                        {photo.owner}
+                                    <p className="text-barfer-orange font-bold text-lg mb-2">
+                                        usando {photo.product}
                                     </p>
-                                    <p className="text-gray-600 dark:text-gray-400 italic">
-                                        "{photo.comment}"
+                                    <p className="text-gray-600 dark:text-gray-400 max-w-md">
+                                        Descubre la calidad RAW que hace felices a nuestros amigos de cuatro patas
                                     </p>
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    {/* Botones de navegación */}
-                    <button
-                        onClick={prevClientPhoto}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 bg-barfer-green bg-opacity-90 hover:bg-opacity-100 text-barfer-white p-2 rounded-full shadow-lg transition-all hover:scale-110"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-
-                    <button
-                        onClick={nextClientPhoto}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 bg-barfer-green bg-opacity-90 hover:bg-opacity-100 text-barfer-white p-2 rounded-full shadow-lg transition-all hover:scale-110"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
-
                     {/* Indicadores de puntos */}
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-                        {CLIENT_PHOTOS.map((_, index) => (
+                        {ANIMAL_PRODUCT_PHOTOS.map((_, index) => (
                             <button
                                 key={index}
                                 onClick={() => goToClientPhoto(index)}
-                                className={`w-2 h-2 rounded-full transition-all ${index === currentClientPhotoIndex
-                                        ? 'bg-sky-500 scale-125'
-                                        : 'bg-sky-300 hover:bg-sky-400'
+                                className={`w-3 h-3 rounded-full transition-all ${index === currentClientPhotoIndex
+                                        ? 'bg-barfer-green scale-125'
+                                        : 'bg-barfer-green/50 hover:bg-barfer-green/75'
                                     }`}
                             />
                         ))}
                     </div>
                 </div>
-            </div>
+                </div>
+            </ScrollReveal>
 
             {/* Sección de Preguntas Frecuentes */}
-            <div className="mb-12">
-                <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8 font-poppins">
-                    PREGUNTAS FRECUENTES
-                </h2>
+            <ScrollReveal delay={600}>
+                <div className="mb-12">
+                <div className="text-center mb-8">
+                    <h2 className="text-4xl lg:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-barfer-green to-barfer-orange font-poppins mb-2">
+                        ❓ PREGUNTAS FRECUENTES ❓
+                    </h2>
+                    <p className="text-gray-600 text-lg">Resolvemos todas tus dudas</p>
+                </div>
 
                 <div className="w-full space-y-4">
                     {FAQ_DATA.map((faq) => (
@@ -955,13 +738,11 @@ export default function AdminPage() {
                 {/* Información de contacto adicional */}
                 <div className="mt-8 text-center">
                     <p className="text-gray-600 dark:text-gray-400 mb-2">
-                        ¿No encuentras la respuesta que buscas?
+                        ¿No encuentras la respuesta que buscas? Escríbenos abajo.
                     </p>
-                    <button className="bg-barfer-orange hover:bg-orange-600 text-barfer-white px-8 py-4 rounded-2xl font-semibold transition-colors shadow-md hover:shadow-xl transform hover:scale-105 font-nunito">
-                        Contáctanos
-                    </button>
                 </div>
-            </div>
+                </div>
+            </ScrollReveal>
 
 
 
@@ -1088,6 +869,14 @@ export default function AdminPage() {
                 </div>
             </footer>
             </div>
+            
+            {/* Cart Notification */}
+            <CartNotification
+                isVisible={notification.isVisible}
+                productName={notification.productName}
+                quantity={notification.quantity}
+                onClose={closeNotification}
+            />
         </div>
     );
 } 

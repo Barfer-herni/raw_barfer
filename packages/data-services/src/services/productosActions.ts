@@ -36,6 +36,15 @@ export async function createProductAction(productData: CreateAdminProduct) {
         }
 
         const result = await createProductService(productData, adminCheck.user.id);
+        
+        // Serializar explícitamente el resultado para Next.js
+        if (result.success && result.product) {
+            return {
+                ...result,
+                product: JSON.parse(JSON.stringify(result.product))
+            };
+        }
+        
         return result;
     } catch (error) {
         console.error('Error en createProductAction:', error);
@@ -65,9 +74,11 @@ export async function getAllProductsAction(includeInactive = false): Promise<{ s
         }
 
         const products = await getAllProductsService(includeInactive);
+        
+        // Serializar explícitamente para Next.js
         return {
             success: true,
-            products
+            products: JSON.parse(JSON.stringify(products))
         };
     } catch (error) {
         console.error('Error en getAllProductsAction:', error);
@@ -124,6 +135,15 @@ export async function updateProductAction(productId: string, updateData: Partial
         }
 
         const result = await updateProductService(productId, updateData);
+        
+        // Serializar explícitamente el resultado para Next.js
+        if (result.success && result.product) {
+            return {
+                ...result,
+                product: JSON.parse(JSON.stringify(result.product))
+            };
+        }
+        
         return result;
     } catch (error) {
         console.error('Error en updateProductAction:', error);
@@ -151,7 +171,9 @@ export async function deleteProductAction(productId: string) {
         }
 
         const result = await deleteProductService(productId);
-        return result;
+        
+        // Serializar explícitamente para Next.js
+        return JSON.parse(JSON.stringify(result));
     } catch (error) {
         console.error('Error en deleteProductAction:', error);
         return {

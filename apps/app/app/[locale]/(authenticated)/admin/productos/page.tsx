@@ -25,6 +25,7 @@ export default function ProductosAdminPage() {
     const [showCategoryForm, setShowCategoryForm] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
@@ -72,7 +73,7 @@ export default function ProductosAdminPage() {
             }
 
             const [productsResult, categoriesResult] = await Promise.all([
-                getAllProductsAction(true), // Incluir inactivos para admin
+                getAllProductsAction(true), // Incluir todos los productos para admin
                 getAllCategoriesAction()
             ]);
             
@@ -90,7 +91,7 @@ export default function ProductosAdminPage() {
         }
     };
 
-    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -101,24 +102,12 @@ export default function ProductosAdminPage() {
             return;
         }
 
-        setUploadingImage(true);
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('folder', 'productos');
-            
-            const result = await uploadImageAction(formData);
-            if (result.success && result.url) {
-                setProductForm(prev => ({ ...prev, imagen: result.url! }));
-            } else {
-                alert(result.message || 'Error al subir imagen');
-            }
-        } catch (error) {
-            console.error('Error subiendo imagen:', error);
-            alert('Error al subir imagen');
-        } finally {
-            setUploadingImage(false);
-        }
+        // Almacenar el archivo localmente para subirlo después
+        setSelectedImageFile(file);
+        
+        // Crear preview local usando URL.createObjectURL
+        const previewUrl = URL.createObjectURL(file);
+        setProductForm(prev => ({ ...prev, imagen: previewUrl }));
     };
 
     const handleProductSubmit = async (e: React.FormEvent) => {
@@ -130,7 +119,37 @@ export default function ProductosAdminPage() {
 
         setIsSubmitting(true);
         try {
-            const result = await createProductAction(productForm);
+            let finalProductForm = { ...productForm };
+
+            // Si hay una imagen seleccionada, subirla a Cloudinary primero
+            if (selectedImageFile) {
+                setUploadingImage(true);
+                try {
+                    const formData = new FormData();
+                    formData.append('file', selectedImageFile);
+                    formData.append('folder', 'productos');
+                    
+                    const uploadResult = await uploadImageAction(formData);
+                    if (uploadResult.success && uploadResult.url) {
+                        finalProductForm.imagen = uploadResult.url;
+                        // Limpiar la URL del preview local
+                        if (productForm.imagen.startsWith('blob:')) {
+                            URL.revokeObjectURL(productForm.imagen);
+                        }
+                    } else {
+                        alert(uploadResult.message || 'Error al subir imagen');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error subiendo imagen:', error);
+                    alert('Error al subir imagen');
+                    return;
+                } finally {
+                    setUploadingImage(false);
+                }
+            }
+
+            const result = await createProductAction(finalProductForm);
             if (result.success) {
                 alert('Producto creado exitosamente');
                 setShowProductForm(false);
@@ -174,6 +193,11 @@ export default function ProductosAdminPage() {
     };
 
     const resetProductForm = () => {
+        // Limpiar URL de preview si existe
+        if (productForm.imagen && productForm.imagen.startsWith('blob:')) {
+            URL.revokeObjectURL(productForm.imagen);
+        }
+        
         setProductForm({
             titulo: '',
             descripcion: '',
@@ -190,9 +214,13 @@ export default function ProductosAdminPage() {
             }
         });
         setEditingProduct(null);
+        setSelectedImageFile(null);
     };
 
     const handleEditProduct = (product: AdminProduct) => {
+        // Limpiar cualquier archivo seleccionado previamente
+        setSelectedImageFile(null);
+        
         setEditingProduct(product);
         setProductForm({
             titulo: product.titulo,
@@ -221,7 +249,37 @@ export default function ProductosAdminPage() {
 
         setIsSubmitting(true);
         try {
-            const result = await updateProductAction(editingProduct._id!, productForm);
+            let finalProductForm = { ...productForm };
+
+            // Si hay una nueva imagen seleccionada, subirla a Cloudinary primero
+            if (selectedImageFile) {
+                setUploadingImage(true);
+                try {
+                    const formData = new FormData();
+                    formData.append('file', selectedImageFile);
+                    formData.append('folder', 'productos');
+                    
+                    const uploadResult = await uploadImageAction(formData);
+                    if (uploadResult.success && uploadResult.url) {
+                        finalProductForm.imagen = uploadResult.url;
+                        // Limpiar la URL del preview local
+                        if (productForm.imagen.startsWith('blob:')) {
+                            URL.revokeObjectURL(productForm.imagen);
+                        }
+                    } else {
+                        alert(uploadResult.message || 'Error al subir imagen');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error subiendo imagen:', error);
+                    alert('Error al subir imagen');
+                    return;
+                } finally {
+                    setUploadingImage(false);
+                }
+            }
+
+            const result = await updateProductAction(editingProduct._id!, finalProductForm);
             if (result.success) {
                 alert('Producto actualizado exitosamente');
                 setShowProductForm(false);
@@ -239,98 +297,22 @@ export default function ProductosAdminPage() {
     };
 
     const handleDeleteProduct = async (productId: string) => {
-        if (!window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+        if (!window.confirm('⚠️ ¿Estás seguro de que quieres eliminar este producto?\n\n🚨 ATENCIÓN: Esta acción eliminará el producto COMPLETAMENTE de la base de datos y NO se puede deshacer.')) {
             return;
         }
 
         try {
             const result = await deleteProductAction(productId);
             if (result.success) {
-                alert('Producto eliminado exitosamente');
-                loadData();
+                alert('✅ Producto eliminado exitosamente');
+                loadData(); // Recargar la lista para reflejar los cambios
             } else {
-                alert(result.message || 'Error al eliminar producto');
+                alert('❌ ' + (result.message || 'Error al eliminar producto'));
+                console.error('Error al eliminar producto:', result);
             }
         } catch (error) {
             console.error('Error eliminando producto:', error);
-            alert('Error al eliminar producto');
-        }
-    };
-
-    // Función para verificar si una URL de imagen es válida
-    const checkImageUrl = async (url: string): Promise<boolean> => {
-        try {
-            const response = await fetch(url, { method: 'HEAD' });
-            console.log(`Verificando imagen ${url}: ${response.status} ${response.statusText}`);
-            return response.ok;
-        } catch (error) {
-            console.error('Error verificando URL de imagen:', url, error);
-            return false;
-        }
-    };
-
-    // Función para probar conectividad con Cloudinary
-    const testCloudinaryConnection = async () => {
-        console.log('🔧 Iniciando test completo de Cloudinary...');
-        console.log('Cloud name confirmado: fidelitycode');
-        
-        // Test 1: Imagen de muestra oficial de Cloudinary
-        const officialSample = 'https://res.cloudinary.com/demo/image/upload/sample.jpg';
-        const officialValid = await checkImageUrl(officialSample);
-        
-        // Test 2: Imagen de muestra en tu cloud
-        const yourSample = 'https://res.cloudinary.com/fidelitycode/image/upload/sample.jpg';
-        const yourSampleValid = await checkImageUrl(yourSample);
-        
-        // Test 3: URL problemática específica
-        const problemUrl = 'https://res.cloudinary.com/fidelitycode/image/upload/v1755093408/productos/pdllnokuya70rnjack6s.jpg';
-        const problemValid = await checkImageUrl(problemUrl);
-        
-        // Test 4: URL sin versión
-        const noVersionUrl = 'https://res.cloudinary.com/fidelitycode/image/upload/productos/pdllnokuya70rnjack6s.jpg';
-        const noVersionValid = await checkImageUrl(noVersionUrl);
-        
-        // Test 5: Test de acceso con fetch directo
-        console.log('🔍 Testando acceso directo...');
-        try {
-            const directResponse = await fetch(problemUrl, { 
-                method: 'HEAD',
-                mode: 'cors'
-            });
-            console.log(`Direct fetch status: ${directResponse.status}`);
-            console.log(`Direct fetch headers:`, Object.fromEntries(directResponse.headers.entries()));
-        } catch (error) {
-            console.error('Error en fetch directo:', error);
-        }
-        
-        console.log('📊 Resultados del test:');
-        console.log(`Demo cloud (control): ${officialValid ? '✅' : '❌'}`);
-        console.log(`Tu cloud sample: ${yourSampleValid ? '✅' : '❌'}`);
-        console.log(`Imagen problemática: ${problemValid ? '✅' : '❌'}`);
-        console.log(`Sin versión: ${noVersionValid ? '✅' : '❌'}`);
-        
-        // Diagnóstico mejorado
-        if (!officialValid) {
-            console.error('🚨 Problema de conectividad general con Cloudinary');
-        } else if (problemValid || noVersionValid) {
-            console.log('✅ ¡Tu configuración de Cloudinary está funcionando correctamente!');
-            console.log('✅ Las imágenes son accesibles');
-            if (!yourSampleValid) {
-                console.log('ℹ️ Tu cloud no tiene imagen "sample.jpg" (esto es normal)');
-            }
-            if (problemValid && noVersionValid) {
-                console.log('✅ La imagen problemática SÍ existe y es accesible');
-                console.log('💡 Si aún no se ve en la página, intenta:');
-                console.log('   1. Limpiar cache del navegador (Ctrl+F5)');
-                console.log('   2. Recargar la página');
-                console.log('   3. Verificar consola de Network tab');
-            }
-        } else if (!problemValid && !noVersionValid) {
-            console.error('🚨 La imagen específica no existe en tu cloud');
-            console.log('💡 La imagen fue eliminada o nunca se subió correctamente');
-        } else if (!problemValid && noVersionValid) {
-            console.error('🚨 Problema con la versión de la imagen');
-            console.log('💡 La imagen existe pero con diferente versión');
+            alert('❌ Error al eliminar producto. Revisa la consola para más detalles.');
         }
     };
 
@@ -383,16 +365,6 @@ export default function ProductosAdminPage() {
                     <p className="text-gray-600 font-nunito">
                         Administra el catálogo de productos de la tienda
                     </p>
-                    
-                    {/* Debug button - solo visible en desarrollo */}
-                    {process.env.NODE_ENV === 'development' && (
-                        <button
-                            onClick={testCloudinaryConnection}
-                            className="mt-2 text-sm bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded font-nunito"
-                        >
-                            🔧 Test Cloudinary
-                        </button>
-                    )}
                 </div>
 
                 {/* Botones de acción */}
@@ -474,13 +446,15 @@ export default function ProductosAdminPage() {
                             )}
                             <div className="space-y-2">
                                 <div className="flex justify-between">
-                                    <span className="text-sm text-gray-500">Minorista:</span>
-                                    <span className="font-semibold text-barfer-orange">${product.precioMinorista}</span>
+                                    <span className="text-sm text-gray-500">Precio:</span>
+                                    <span className="font-semibold text-barfer-green">${product.precioMinorista}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-sm text-gray-500">Mayorista:</span>
-                                    <span className="font-semibold text-barfer-green">${product.precioMayorista}</span>
-                                </div>
+                                {product.precioMayorista > 0 && (
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-500">Oferta:</span>
+                                        <span className="font-semibold text-barfer-orange">${product.precioMayorista}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between">
                                     <span className="text-sm text-gray-500">Stock:</span>
                                     <span className={`font-semibold ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -575,16 +549,15 @@ export default function ProductosAdminPage() {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Precio Mayorista *
+                                                Precio de Oferta
                                             </label>
                                             <input
                                                 type="number"
-                                                required
                                                 min="0"
                                                 step="0.01"
                                                 value={productForm.precioMayorista}
                                                 onChange={(e) => setProductForm(prev => ({ ...prev, precioMayorista: parseFloat(e.target.value) || 0 }))}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-barfer-green focus:border-barfer-green"
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-barfer-orange focus:border-barfer-orange"
                                                 placeholder="0.00"
                                             />
                                         </div>
@@ -641,6 +614,15 @@ export default function ProductosAdminPage() {
                                         {uploadingImage && (
                                             <p className="text-sm text-blue-600 mt-2">Subiendo imagen...</p>
                                         )}
+                                        {selectedImageFile && (
+                                            <p className="text-sm text-gray-600 mt-2">
+                                                📁 Imagen seleccionada: {selectedImageFile.name}
+                                                <br />
+                                                <span className="text-xs text-gray-500">
+                                                    Se subirá cuando {editingProduct ? 'actualices' : 'crees'} el producto
+                                                </span>
+                                            </p>
+                                        )}
                                         {productForm.imagen && (
                                             <img
                                                 src={productForm.imagen}
@@ -652,7 +634,7 @@ export default function ProductosAdminPage() {
 
                                     {/* Dimensiones */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-4">
                                             Dimensiones del Paquete
                                         </label>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -661,17 +643,17 @@ export default function ProductosAdminPage() {
                                                     type="number"
                                                     min="0"
                                                     step="0.1"
-                                                    value={productForm.dimensiones?.alto || ''}
+                                                    value={productForm.dimensiones?.profundidad || ''}
                                                     onChange={(e) => setProductForm(prev => ({
                                                         ...prev,
                                                         dimensiones: {
                                                             ...prev.dimensiones,
-                                                            alto: parseFloat(e.target.value) || undefined
+                                                            profundidad: parseFloat(e.target.value) || undefined
                                                         }
                                                     }))}
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-barfer-green focus:border-barfer-green text-sm"
-                                                    placeholder="Alto (cm)"
                                                 />
+                                                <label className="block text-xs text-gray-500 mt-1 text-center">Largo (cm)</label>
                                             </div>
                                             <div>
                                                 <input
@@ -687,25 +669,25 @@ export default function ProductosAdminPage() {
                                                         }
                                                     }))}
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-barfer-green focus:border-barfer-green text-sm"
-                                                    placeholder="Ancho (cm)"
                                                 />
+                                                <label className="block text-xs text-gray-500 mt-1 text-center">Ancho (cm)</label>
                                             </div>
                                             <div>
                                                 <input
                                                     type="number"
                                                     min="0"
                                                     step="0.1"
-                                                    value={productForm.dimensiones?.profundidad || ''}
+                                                    value={productForm.dimensiones?.alto || ''}
                                                     onChange={(e) => setProductForm(prev => ({
                                                         ...prev,
                                                         dimensiones: {
                                                             ...prev.dimensiones,
-                                                            profundidad: parseFloat(e.target.value) || undefined
+                                                            alto: parseFloat(e.target.value) || undefined
                                                         }
                                                     }))}
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-barfer-green focus:border-barfer-green text-sm"
-                                                    placeholder="Prof. (cm)"
                                                 />
+                                                <label className="block text-xs text-gray-500 mt-1 text-center">Alto (cm)</label>
                                             </div>
                                             <div>
                                                 <input
@@ -721,8 +703,8 @@ export default function ProductosAdminPage() {
                                                         }
                                                     }))}
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-barfer-green focus:border-barfer-green text-sm"
-                                                    placeholder="Peso (kg)"
                                                 />
+                                                <label className="block text-xs text-gray-500 mt-1 text-center">Peso (kg)</label>
                                             </div>
                                         </div>
                                     </div>

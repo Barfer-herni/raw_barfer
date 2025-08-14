@@ -39,9 +39,21 @@ export async function createProduct(productData: CreateAdminProduct, createdBy: 
 
         const result = await productsCollection.insertOne(newProduct);
 
+        // Serializar completamente el producto para evitar problemas con Next.js
         const createdProduct: AdminProduct = {
             _id: result.insertedId.toString(),
-            ...newProduct
+            titulo: newProduct.titulo,
+            descripcion: newProduct.descripcion,
+            precioMinorista: newProduct.precioMinorista,
+            precioMayorista: newProduct.precioMayorista,
+            stock: newProduct.stock,
+            imagen: newProduct.imagen,
+            categoria: newProduct.categoria,
+            dimensiones: newProduct.dimensiones,
+            isActive: newProduct.isActive,
+            createdBy: newProduct.createdBy,
+            createdAt: newProduct.createdAt,
+            updatedAt: newProduct.updatedAt,
         };
 
         return {
@@ -178,23 +190,25 @@ export async function updateProduct(productId: string, updateData: Partial<Creat
 }
 
 /**
- * Eliminar un producto (soft delete)
+ * Eliminar un producto (hard delete - eliminación completa)
  */
 export async function deleteProduct(productId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
         const productsCollection = await getCollection('productos');
 
-        const result = await productsCollection.updateOne(
-            { _id: new ObjectId(productId) },
-            { 
-                $set: { 
-                    isActive: false,
-                    updatedAt: new Date().toISOString()
-                }
-            }
+        console.log(`🗑️ Intentando eliminar producto completamente con ID: ${productId}`);
+        
+        const result = await productsCollection.deleteOne(
+            { _id: new ObjectId(productId) }
         );
 
-        if (result.matchedCount === 0) {
+        console.log(`📊 Resultado de eliminación:`, {
+            deletedCount: result.deletedCount,
+            acknowledged: result.acknowledged
+        });
+
+        if (result.deletedCount === 0) {
+            console.error(`❌ Producto no encontrado: ${productId}`);
             return {
                 success: false,
                 message: 'Producto no encontrado',
@@ -202,9 +216,10 @@ export async function deleteProduct(productId: string): Promise<{ success: boole
             };
         }
 
+        console.log(`✅ Producto eliminado completamente: ${productId}`);
         return {
             success: true,
-            message: 'Producto eliminado exitosamente'
+            message: 'Producto eliminado completamente'
         };
     } catch (error) {
         console.error('Error al eliminar producto:', error);

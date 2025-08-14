@@ -133,7 +133,7 @@ export default function ProductosAdminPage() {
                     if (uploadResult.success && uploadResult.url) {
                         finalProductForm.imagen = uploadResult.url;
                         // Limpiar la URL del preview local
-                        if (productForm.imagen.startsWith('blob:')) {
+                        if (productForm.imagen && productForm.imagen.startsWith('blob:')) {
                             URL.revokeObjectURL(productForm.imagen);
                         }
                     } else {
@@ -263,7 +263,7 @@ export default function ProductosAdminPage() {
                     if (uploadResult.success && uploadResult.url) {
                         finalProductForm.imagen = uploadResult.url;
                         // Limpiar la URL del preview local
-                        if (productForm.imagen.startsWith('blob:')) {
+                        if (productForm.imagen && productForm.imagen.startsWith('blob:')) {
                             URL.revokeObjectURL(productForm.imagen);
                         }
                     } else {
